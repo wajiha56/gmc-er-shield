@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ER-Shield v3 | GMC Security</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        /* ── DESIGN TOKENS ─────────────────────────── */
+        :root {
+            --success:  #2ecc71;
+            --danger:   #e74c3c;
+            --exit:     #3498db;
+            --warning:  #f1c40f;
+            --trauma:   #e74c3c;
+            --bg:       #f0f2f5;
+            --card:     #ffffff;
+            --text:     #2f3640;
+            --subtext:  #636e72;
+            --border:   #dfe6e9;
+            --key-bg:   #dfe6e9;
+            --shadow:   0 8px 30px rgba(0,0,0,0.08);
+        }
+        .dark {
+            --bg:       #1a1f2e;
+            --card:     #252d3d;
+            --text:     #ecf0f1;
+            --subtext:  #95a5a6;
+            --border:   #2f3a50;
+            --key-bg:   #2f3a50;
+            --shadow:   0 8px 30px rgba(0,0,0,0.4);
+        }
+
+        /* ── RESET & BASE ──────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background 0.3s, color 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* ── HEADER BAR ────────────────────────────── */
+        .top-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .top-bar .logo { font-size: 17px; font-weight: 800; letter-spacing: 0.5px; }
+        .top-bar .logo span { color: var(--danger); }
+        .icon-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s;
+        }
+        .icon-btn:active { transform: scale(0.9); }
+
+        /* ── SCREENS ───────────────────────────────── */
+        .screen { display: none; width: 100%; max-width: 480px; padding: 20px 16px 40px; }
+        .screen.active { display: block; }
+
+        /* ── LOGIN ─────────────────────────────────── */
+        .login-card {
+            background: var(--card);
+            border-radius: 28px;
+            padding: 32px 24px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            margin-top: 20px;
+        }
+        .login-card h2 { font-size: 22px; margin-bottom: 6px; }
+        .login-card p { color: var(--subtext); font-size: 14px; margin-bottom: 20px; }
+        #dots {
+            font-size: 32px;
+            letter-spacing: 14px;
+            color: var(--subtext);
+            margin: 16px 0;
+            min-height: 44px;
+        }
+        .key-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .key {
+            height: 68px;
+            border-radius: 18px;
+            border: none;
+            background: var(--key-bg);
+            font-size: 26px;
+            font-weight: 700;
+            cursor: pointer;
+            color: var(--text);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+            transition: transform 0.08s, box-shadow 0.08s;
+        }
+        .key:active { transform: translateY(4px); box-shadow: none; }
+        .key.del { background: #fab1a0; color: #c0392b; }
+        .key.ok  { background: var(--success); color: white; }
+
+        /* ── GUARD INTERFACE ───────────────────────── */
+        .section-title { font-size: 13px; font-weight: 700; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 10px; }
+
+        .mode-toggle {
+            display: flex;
+            background: var(--key-bg);
+            border-radius: 16px;
+            padding: 5px;
+            gap: 5px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 13px;
+            border-radius: 12px;
+            border: none;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            background: transparent;
+            color: var(--subtext);
+        }
+        .mode-btn.active-in  { background: var(--success); color: white; }
+        .mode-btn.active-out { background: var(--exit);    color: white; }
+
+        .trauma-toggle {
+            width: 100%;
+            padding: 14px;
+            border-radius: 14px;
+            border: 2px solid var(--border);
+            background: var(--card);
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+        .trauma-toggle.on { background: var(--trauma); color: white; border-color: var(--trauma); }
+
+        .scanner-wrap {
+            border-radius: 22px;
+            overflow: hidden;
+            border: 5px solid var(--card);
+            box-shadow: var(--shadow);
+            background: #000;
+            margin: 14px 0;
+        }
+
+        .gate-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .gate-select, .notes-input, .manual-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 2px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .gate-select { flex: 0 0 140px; width: auto; }
+        .gate-select:focus, .notes-input:focus, .manual-input:focus { border-color: var(--exit); }
+        .manual-input { text-align: center; font-size: 18px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .notes-input { resize: none; height: 70px; font-family: inherit; margin-bottom: 10px; }
+
+        .submit-btn {
+            width: 100%;
+            padding: 17px;
+            border: none;
+            border-radius: 16px;
+            background: var(--success);
+            color: white;
+            font-size: 17px;
+            font-weight: 800;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .submit-btn:active { transform: scale(0.98); opacity: 0.9; }
+        .submit-btn.out { background: var(--exit); }
+
+        /* ── ADMIN DASHBOARD ───────────────────────── */
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat-card {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 18px 12px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+        .stat-card .label { font-size: 11px; font-weight: 700; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+        .stat-card .value { font-size: 32px; font-weight: 900; }
+        .value.green { color: var(--success); }
+        .value.blue  { color: var(--exit); }
+        .value.red   { color: var(--danger); }
+
+        .progress-bar-wrap { background: var(--key-bg); border-radius: 10px; height: 10px; overflow: hidden; margin: 4px 0 20px; }
+        .progress-bar { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--success), var(--danger)); transition: width 0.6s ease; }
+
+        .date-row { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+        .date-row input { flex: 1; }
+        .refresh-btn { background: var(--key-bg); border: 1px solid var(--border); border-radius: 12px; padding: 13px 16px; cursor: pointer; font-size: 16px; color: var(--text); }
+
+        .admin-btn { background: #2c3e50; margin-bottom: 10px; }
+        .logout-btn { background: var(--danger); }
+
+        /* ── RESULT OVERLAY ────────────────────────── */
+        #overlay {
+            position: fixed; inset: 0;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+        #overlay.visible { display: flex; }
+        #res-icon { font-size: 100px; animation: pop 0.3s ease; }
+        #res-msg  { font-size: 22px; font-weight: 800; margin-top: 14px; line-height: 1.4; }
+        #res-sub  { font-size: 15px; margin-top: 8px; opacity: 0.85; }
+        @keyframes pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* ── TOAST ─────────────────────────────────── */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #2c3e50; color: white;
+            padding: 12px 24px; border-radius: 30px;
+            font-weight: 600; font-size: 14px;
+            opacity: 0; transition: opacity 0.3s;
+            z-index: 10000; white-space: nowrap;
+        }
+        #toast.show { opacity: 1; }
+
+        /* ── MISC ──────────────────────────────────── */
+        .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+        .badge {
+            display: inline-block;
+            font-size: 11px; font-weight: 700;
+            padding: 3px 10px; border-radius: 30px;
+            background: var(--exit); color: white;
+            vertical-align: middle; margin-left: 6px;
+        }
+
+        /* ── LEGAL WARNING BOX (GUARD SCREEN) ─────── */
+        .legal-warning {
+            background: #8b0000;  /* deep red authority background */
+            border-left: 6px solid #ffcc00;
+            border-radius: 18px;
+            padding: 18px 14px;
+            margin: 20px 0 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            color: white;
+        }
+        .legal-warning .warning-title {
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legal-warning .warning-text {
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 500;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        }
+        .legal-warning .punjab-act {
+            font-size: 11px;
+            margin-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            padding-top: 8px;
+            font-style: italic;
+            font-weight: 500;
+        }
+        /* ── PROFESSIONAL FOOTER (ADMIN SCREEN) ───── */
+        .admin-footer {
+            margin-top: 40px;
+            padding: 20px 16px;
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            text-align: center;
+            font-size: 12px;
+            color: var(--subtext);
+            box-shadow: var(--shadow);
+        }
+        .admin-footer .footer-line {
+            margin: 6px 0;
+            font-weight: 500;
+        }
+        .admin-footer .mission {
+            font-size: 11px;
+            color: var(--subtext);
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body onmousemove="ping()" onclick="ping()" onkeydown="ping()" ontouchstart="ping()">
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="logo">ER‑<span>Shield</span> <small class="badge">v3</small></div>
+        <div style="display:flex;gap:8px;">
+            <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+            <button class="icon-btn" id="logout-icon" onclick="logoutUser()" title="Logout" style="display:none;">🔓</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         LOGIN SCREEN
+    ═══════════════════════════════════════ -->
+    <div class="screen active" id="screen-login">
+        <div class="login-card">
+            <h2>🏥 GMC ER-Shield</h2>
+            <p>Enter your security PIN to continue</p>
+            <div id="dots">_ _ _ _</div>
+            <div class="key-grid">
+                <button class="key" onclick="press('1')">1</button>
+                <button class="key" onclick="press('2')">2</button>
+                <button class="key" onclick="press('3')">3</button>
+                <button class="key" onclick="press('4')">4</button>
+                <button class="key" onclick="press('5')">5</button>
+                <button class="key" onclick="press('6')">6</button>
+                <button class="key" onclick="press('7')">7</button>
+                <button class="key" onclick="press('8')">8</button>
+                <button class="key" onclick="press('9')">9</button>
+                <button class="key del" onclick="clearPin()">⌫</button>
+                <button class="key" onclick="press('0')">0</button>
+                <button class="key ok" onclick="auth()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         GUARD SCREEN
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-guard">
+        <div class="section-title">Scan Mode</div>
+        <div class="mode-toggle">
+            <button class="mode-btn active-in" id="btnIn"  onclick="setMode('entry')">📥 Entry</button>
+            <button class="mode-btn"           id="btnOut" onclick="setMode('exit')">📤 Exit</button>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">Trauma Override</div>
+        <button class="trauma-toggle" id="traumaBtn" onclick="toggleTrauma()">🏥 TRAUMA MODE — OFF</button>
+
+        <!-- ========= HARDCODED LEGAL WARNING (ZERO TOLERANCE) ========= -->
+        <div class="legal-warning">
+            <div class="warning-title">
+                <span>⚠️</span> ZERO TOLERANCE POLICY
+            </div>
+            <div class="warning-text">
+                Strictly Enforced by YDA Gujranwala & PMA Gujranwala<br><br>
+                According to the Punjab Healthcare Services Providers and Facilities (Prevention of Violence and Damage to Property) Act, any disruption of patient care or aggression towards medical staff is a legal offense. All fussy or non-compliant visitors will have access revoked and will be immediately handed over to the hospital Police Chowki.
+            </div>
+            <div class="punjab-act">
+                📜 Section 4 & 5 – Punishable offense. Zero negotiation.
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px;">QR Camera Scanner</div>
+        <div class="scanner-wrap"><div id="reader"></div></div>
+
+        <div class="section-title">Manual Entry</div>
+        <div class="gate-row">
+            <select class="gate-select" id="gateSelect">
+                <option value="GATE-1">Gate 1</option>
+                <option value="GATE-2">Gate 2</option>
+                <option value="GATE-3">Gate 3</option>
+                <option value="GATE-ER">ER Gate</option>
+            </select>
+            <input class="manual-input" id="manualId" type="text" placeholder="TYPE PATIENT ID" style="flex:1;">
+        </div>
+        <textarea class="notes-input" id="guardNotes" placeholder="Guard notes (optional — e.g. Damaged card)"></textarea>
+        <button class="submit-btn" id="submitBtn" onclick="handleManual()">SUBMIT SCAN 🚀</button>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+         ADMIN SCREEN
+    ═══════════════════════════════════════ -->
+    <div class="screen" id="screen-admin">
+        <div class="section-title">Live Statistics</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Inside</div>
+                <div class="value green" id="statInside">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Traffic</div>
+                <div class="value blue" id="statTraffic">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Capacity</div>
+                <div class="value red" id="statCapacity">—</div>
+            </div>
+        </div>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progressBar" style="width:0%"></div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="section-title">Export Shift Report</div>
+        <div class="date-row">
+            <input class="gate-select" type="date" id="exportDate" style="flex:1;">
+            <button class="refresh-btn" onclick="fetchStats()">🔄</button>
+        </div>
+        <button class="submit-btn admin-btn" onclick="downloadReport('csv')">📥 Download CSV Report</button>
+        <button class="submit-btn" style="background:#1a7a4a;margin-bottom:10px;" onclick="downloadReport('excel')">📊 Download Excel Report (Forensic)</button>
+
+        <hr class="divider">
+
+        <!-- ========= HARDCODED PROFESSIONAL FOOTER (ADMIN DASHBOARD) ========= -->
+        <div class="admin-footer">
+            <div class="footer-line">🔷 System Architecture by The Honeybee Code Studio</div>
+            <div class="footer-line">📜 Developed upon the official recommendation of YDA Gujranwala and PMA Gujranwala.</div>
+            <div class="footer-line mission">🎯 Mission Statement: Designed strictly for the facilitation of doctors and the prioritization of pure patient care. This system ensures a safe clinical environment by systematically filtering out unauthorized elements from critical care zones.</div>
+        </div>
+
+        <button class="submit-btn logout-btn" onclick="logoutUser()" style="margin-top: 16px;">Logout Admin</button>
+    </div>
+
+    <!-- RESULT OVERLAY -->
+    <div id="overlay">
+        <div id="res-icon"></div>
+        <div id="res-msg"></div>
+        <div id="res-sub"></div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <!-- ══════════════════════════════════════════
+         JAVASCRIPT
+    ══════════════════════════════════════════ -->
+    <script>
+    // ── CONFIG ──────────────────────────────────
+    // Replace with your actual backend URL (Render / Railway / VPS)
+    const BASE_URL = "http://localhost:8000"; // Change to Render URL when deploying
+
+    // ── STATE ────────────────────────────────────
+    let pin          = "";
+    let currentMode  = "entry";
+    let isTrauma     = false;
+    let isProcessing = false;
+    let statsTimer   = null;
+    let idleTimer    = null;
+    let wakeLock     = null;
+    let scanner      = null;
+
+    // ── SOUNDS ───────────────────────────────────
+    const SFX = {
+        success: new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"),
+        error:   new Audio("https://assets.mixkit.co/active_storage/sfx/2959/2959-preview.mp3"),
+        exit:    new Audio("https://assets.mixkit.co/active_storage/sfx/2190/2190-preview.mp3"),
+    };
+
+    // ── URDU TTS ─────────────────────────────────
+    function speak(text) {
+        try {
+            const u   = new SpeechSynthesisUtterance(text);
+            u.lang    = "ur-PK";
+            u.rate    = 0.85;
+            u.pitch   = 1.0;
+            speechSynthesis.cancel();
+            speechSynthesis.speak(u);
+        } catch (_) {}
+    }
+
+    // ── HELPERS ──────────────────────────────────
+    function headers() {
+        return {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("er_token")}`,
+        };
+    }
+
+    function showToast(msg, duration = 2500) {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), duration);
+    }
+
+    function setScreen(id) {
+        document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+    }
+
+    // ── IDLE TIMER ───────────────────────────────
+    function ping() {
+        clearTimeout(idleTimer);
+        if (localStorage.getItem("er_token")) {
+            idleTimer = setTimeout(logoutUser, 15 * 60 * 1000); // 15 min
+        }
+    }
+
+    // ── THEME ────────────────────────────────────
+    function toggleTheme() {
+        document.body.classList.toggle("dark");
+        localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
+    }
+    if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
+
+    // ── PIN KEYPAD ───────────────────────────────
+    function press(n) {
+        if (pin.length < 4) { pin += n; renderDots(); }
+    }
+    function clearPin() { pin = ""; renderDots(); }
+    function renderDots() {
+        document.getElementById("dots").textContent =
+            "● ".repeat(pin.length) + "_ ".repeat(4 - pin.length);
+    }
+
+    // ── AUTH ─────────────────────────────────────
+    async function auth() {
+        if (pin.length < 4) { showToast("Enter 4-digit PIN"); return; }
+        try {
+            const res  = await fetch(`${BASE_URL}/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin }),
+            });
+            if (!res.ok) { showToast("❌ Invalid PIN"); clearPin(); return; }
+
+            const data    = await res.json();
+            const token   = data.access_token;
+            localStorage.setItem("er_token", token);
+
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            document.getElementById("logout-icon").style.display = "flex";
+
+            if (payload.role === "admin") {
+                setScreen("screen-admin");
+                // default export date to today
+                document.getElementById("exportDate").value = new Date().toISOString().slice(0, 10);
+                fetchStats();
+                statsTimer = setInterval(fetchStats, 10_000);
+            } else {
+                setScreen("screen-guard");
+                startCamera();
+                acquireWakeLock();
+            }
+            ping();
+        } catch (e) { showToast("⚠️ Server unreachable"); }
+    }
+
+    // ── LOGOUT ───────────────────────────────────
+    async function logoutUser() {
+        if (wakeLock) { try { await wakeLock.release(); } catch (_) {} }
+        clearInterval(statsTimer);
+        clearTimeout(idleTimer);
+        if (scanner) { try { await scanner.stop(); } catch (_) {} }
+        localStorage.removeItem("er_token");
+        document.getElementById("logout-icon").style.display = "none";
+        clearPin();
+        setScreen("screen-login");
+    }
+
+    // ── WAKE LOCK ────────────────────────────────
+    async function acquireWakeLock() {
+        try {
+            if ("wakeLock" in navigator)
+                wakeLock = await navigator.wakeLock.request("screen");
+        } catch (_) {}
+    }
+    document.addEventListener("visibilitychange", async () => {
+        if (wakeLock && document.visibilityState === "visible") acquireWakeLock();
+    });
+
+    // ── CAMERA ───────────────────────────────────
+    async function startCamera() {
+        scanner = new Html5Qrcode("reader");
+        const config  = { fps: 20, qrbox: { width: 260, height: 260 } };
+        try {
+            const devices = await Html5Qrcode.getCameras();
+            if (!devices.length) { showToast("No camera found — use manual entry"); return; }
+            const camId = devices[devices.length - 1].id;  // prefer rear cam
+            await scanner.start(camId, config, (txt) => {
+                if (!isProcessing) autoScan(txt);
+            });
+        } catch (err) {
+            showToast("Camera permission denied — use manual entry");
+        }
+    }
+
+    async function autoScan(id) {
+        isProcessing = true;
+        scanner.pause(true);
+        await process(id.toUpperCase().trim());
+        setTimeout(() => {
+            isProcessing = false;
+            try { scanner.resume(); } catch (_) {}
+            ping();
+        }, 3500);
+    }
+
+    // ── MANUAL ENTRY ─────────────────────────────
+    function handleManual() {
+        const val = document.getElementById("manualId").value.toUpperCase().trim();
+        if (!val) { showToast("Please enter a Patient ID"); return; }
+        autoScan(val);
+        document.getElementById("manualId").value = "";
+    }
+
+    // ── PROCESS SCAN ─────────────────────────────
+    async function process(id) {
+        const gate  = document.getElementById("gateSelect").value;
+        const notes = document.getElementById("guardNotes").value.trim();
+
+        try {
+            let res;
+            if (currentMode === "exit") {
+                const params = new URLSearchParams({ gate_id: gate });
+                if (notes) params.append("guard_notes", notes);
+                res = await fetch(`${BASE_URL}/exit/${id}?${params}`, { headers: headers() });
+            } else {
+                res = await fetch(`${BASE_URL}/scan-pro`, {
+                    method: "POST",
+                    headers: headers(),
+                    body: JSON.stringify({ patient_id: id, is_trauma: isTrauma, gate_id: gate, guard_notes: notes || null }),
+                });
+            }
+
+            const data = await res.json();
+
+            // Audio & voice feedback
+            if (data.screen_color === "GREEN") {
+                SFX.success.play().catch(() => {});
+                speak("Khush amdeed! Aap andar ja sakte hain.");
+            } else if (data.screen_color === "BLUE") {
+                SFX.exit.play().catch(() => {});
+                speak("Shukriya! Aap ki wapsi record ho gayi hai.");
+            } else {
+                SFX.error.play().catch(() => {});
+                if (data.message === "LIMIT FULL")
+                    speak("Maazrat! Attendants ki taadad poori ho chuki hai.");
+                else if (data.message?.includes("EXPIRED"))
+                    speak("Ye parchi purani hai. Nayi parchi layein.");
+                else
+                    speak("Ghalat parchi. Reception se rabta karein.");
+            }
+
+            // Clear notes after successful scan
+            if (data.screen_color !== "RED") document.getElementById("guardNotes").value = "";
+
+            showOverlay(data.screen_color, data.icon, data.message, data.duration || "");
+        } catch (_) {
+            showOverlay("YELLOW", "💾", "OFFLINE MODE", "Check network");
+        }
+    }
+
+    // ── OVERLAY ──────────────────────────────────
+    const COLOR_MAP = { GREEN: "#2ecc71", BLUE: "#3498db", YELLOW: "#f39c12", RED: "#e74c3c" };
+    function showOverlay(color, icon, msg, sub) {
+        const el = document.getElementById("overlay");
+        el.style.backgroundColor = COLOR_MAP[color] || "#e74c3c";
+        document.getElementById("res-icon").textContent = icon || "❓";
+        document.getElementById("res-msg").textContent  = msg;
+        document.getElementById("res-sub").textContent  = sub;
+        el.classList.add("visible");
+        setTimeout(() => el.classList.remove("visible"), 3200);
+    }
+
+    // ── MODE & TRAUMA ─────────────────────────────
+    function setMode(m) {
+        currentMode = m;
+        document.getElementById("btnIn").className  = "mode-btn" + (m === "entry" ? " active-in"  : "");
+        document.getElementById("btnOut").className = "mode-btn" + (m === "exit"  ? " active-out" : "");
+        document.getElementById("submitBtn").className = "submit-btn" + (m === "exit" ? " out" : "");
+        ping();
+    }
+
+    function toggleTrauma() {
+        isTrauma = !isTrauma;
+        const btn = document.getElementById("traumaBtn");
+        btn.textContent = isTrauma ? "🏥 TRAUMA MODE — ON (2 Attendants)" : "🏥 TRAUMA MODE — OFF";
+        btn.classList.toggle("on", isTrauma);
+        ping();
+    }
+
+    // ── ADMIN STATS ───────────────────────────────
+    async function fetchStats() {
+        try {
+            const res  = await fetch(`${BASE_URL}/api/stats`, { headers: headers() });
+            if (!res.ok) return;
+            const data = await res.json();
+            document.getElementById("statInside").textContent   = data.total_inside;
+            document.getElementById("statTraffic").textContent  = data.daily_traffic;
+            document.getElementById("statCapacity").textContent = data.capacity_percentage + "%";
+            document.getElementById("progressBar").style.width  = Math.min(data.capacity_percentage, 100) + "%";
+        } catch (_) {}
+    }
+
+    // ── EXPORT ───────────────────────────────────
+    async function downloadReport(type = 'csv') {
+        const date     = document.getElementById("exportDate").value;
+        const dateStr  = date || new Date().toISOString().slice(0, 10);
+        const endpoint = type === 'excel' ? '/api/export/excel' : '/api/export';
+        const url      = `${BASE_URL}${endpoint}?date=${dateStr}`;
+        const ext      = type === 'excel' ? 'xlsx' : 'csv';
+        const label    = type === 'excel' ? 'Forensic Excel' : 'CSV';
+        try {
+            const res = await fetch(url, { headers: headers() });
+            if (!res.ok) { showToast("Export failed — check connection"); return; }
+            const blob = await res.blob();
+            const a    = document.createElement("a");
+            a.href     = URL.createObjectURL(blob);
+            a.download = `ER_Shield_Report_${dateStr}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(a.href);
+            a.remove();
+            showToast(`✅ ${label} Report downloaded`);
+        } catch (_) { showToast("⚠️ Download error"); }
+    }
+
+    // ── KEYBOARD SUPPORT ─────────────────────────
+    document.addEventListener("keydown", (e) => {
+        const s = document.getElementById("screen-login");
+        if (!s.classList.contains("active")) return;
+        if (e.key >= "0" && e.key <= "9") press(e.key);
+        if (e.key === "Backspace") clearPin();
+        if (e.key === "Enter") auth();
+    });
+    </script>
+</body>
+</html>
