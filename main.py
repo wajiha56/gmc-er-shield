@@ -4,6 +4,7 @@ Backend: FastAPI + Supabase (PostgreSQL via asyncpg/SQLAlchemy)
 """
 
 import os
+from fastapi.responses import FileResponse
 import io
 import re
 import csv
@@ -171,7 +172,9 @@ def is_code_expired(first_seen_at: datetime) -> bool:
 async def read_index():
     return FileResponse("index.html")
 
-
+@app.get("/")
+async def read_index():
+    return FileResponse("index.html")
 # ── LOGIN ──────────────────────────────────────
 @app.post("/login")
 async def login(data: LoginRequest):
