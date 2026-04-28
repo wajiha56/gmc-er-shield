@@ -7,3 +7,4 @@ psycopg2-binary
 pandas
 python-dotenv
 python-multipart
+openpyxl
